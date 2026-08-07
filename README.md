@@ -66,6 +66,27 @@ Raw FASTQ
 
 ---
 
+## Setup
+
+A condensed on-ramp — see [Quick Start](#quick-start) for full detail and [Tools and Versions Used](#tools-and-versions-used) for the exact environment this pipeline was run with.
+
+1. **Dependencies** — Snakemake (≥ 7.0, typically in a conda env), plus the report/plugin packages:
+   ```bash
+   pip install --user fpdf2 pandas Pillow
+   pip install snakemake-executor-plugin-slurm   # SLURM profile only
+   ```
+2. **References** (one-time, ~60 GB) — `setup_references.sh` downloads and indexes GRCh38, GENCODE v48, the GATK known-sites bundle, and the ancestry container:
+   ```bash
+   bash scripts/setup_references.sh --outdir /path/to/ngs_resources
+   ```
+3. **Configure** — edit `config/config.yaml`: resource paths, `input_dir` (or `config/samples.tsv`), and your cluster's `module`/`conda` tool names.
+4. **Run**:
+   ```bash
+   snakemake --profile profiles/slurm      # cluster;  profiles/local for an interactive session
+   ```
+
+---
+
 ## Pipeline Stages — Detailed
 
 ### Stage 1: Read Quality Control
@@ -590,6 +611,41 @@ ngs_resources/
 
 ---
 
+## Tools and Versions Used
+
+The exact tool versions this pipeline is configured to load (from the `tools:` block of `config/config.yaml`). This is the reproducibility record — the [Dependencies](#dependencies) table below lists *minimum compatible* versions instead.
+
+| Tool | Version (as configured) | Activation | Stage |
+|------|------------------------|-----------|-------|
+| Snakemake | ≥ 7.0 (`min_version` in `Snakefile`; run from the `snakemake` conda env) | conda | Orchestration |
+| fastp | 1.0.1 | module | Read QC |
+| FastQC | 0.12.1 | module | Read QC |
+| MultiQC | 1.20 | module | Read QC |
+| bwa-mem2 | conda env `bwa-mem2` *(version set by the env, not pinned in config)* | conda | DNA alignment |
+| HISAT2 | 2.2.1 | module | RNA alignment |
+| SAMtools | 1.21 | module | BAM processing |
+| GATK | 4.6.2.0 | module | MarkDuplicates, BQSR, variant calling |
+| Subread (featureCounts) | conda env `subread` *(version set by the env, not pinned in config)* | conda | Quantification |
+| Singularity | system binary at `/usr/bin/singularity` *(version not pinned)* | PATH | Ancestry container |
+| Python | 3.11 (`python311`) | module | PDF reports (fpdf2, pandas, Pillow) |
+| R + Bioconductor | 4.4.2 | module | Ancestry plots (ggplot2, gridExtra; optional readxl) |
+| Anaconda | 2023.09 | module | conda environment provisioning |
+
+**Ancestry container (internal tools):** GATK 3.8 + PLINK 1.9 + ADMIXTURE 1.3.0 (as documented in [Stage 5](#stage-5-ancestry-estimation)).
+
+**Reference data:**
+
+| Resource | Version / Source |
+|----------|------------------|
+| Genome | GRCh38 primary assembly |
+| Gene annotation | GENCODE v48 |
+| BQSR known sites | GATK resource bundle — dbSNP138, Mills & 1000G gold-standard indels, 1000G Phase 1 high-confidence SNPs, known indels |
+| Ancestry reference panel | 1000 Genomes (Phase 3), ancestry-informative markers |
+
+> **Reproducibility note:** `bwa-mem2` and `subread` are activated by conda-env *name* only, so their exact versions depend on when the env was built. For a fully pinned environment, record `conda list` output or pin versions in the env spec.
+
+---
+
 ## Dependencies
 
 | Tool | Version | Stage |
@@ -613,3 +669,21 @@ ngs_resources/
 ## Authors
 
 Samuel Mwamburi - Yates Lab
+
+---
+
+## Citation
+
+If you find this pipeline useful in your research, please cite it:
+
+> Mwamburi, S. (2026). *NGS Pipeline: a unified Snakemake workflow for RNA-seq, WES, and WGS* (Version 1.0.0) [Computer software]. https://github.com/Kishaz/ngs-pipeline
+
+A machine-readable [`CITATION.cff`](CITATION.cff) is included, so GitHub shows a **"Cite this repository"** button (with APA and BibTeX export) on the repo page.
+
+> There is no associated publication or DOI yet. If you publish work using this pipeline, consider minting a DOI (e.g. via [Zenodo](https://zenodo.org)) and updating the citation above and `CITATION.cff`.
+
+---
+
+## License
+
+Released under the [MIT License](LICENSE) — © 2026 Samuel Mwamburi.

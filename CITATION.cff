@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+message: "If you find this pipeline useful in your research, please cite it as below."
+title: "NGS Pipeline: a unified Snakemake workflow for RNA-seq, WES, and WGS"
+abstract: >-
+  A Snakemake pipeline for processing RNA-seq, WES, and WGS data through quality
+  control, alignment, base quality score recalibration, variant calling / gene
+  quantification, and genetic ancestry estimation.
+type: software
+authors:
+  - family-names: Mwamburi
+    given-names: Samuel
+    affiliation: "Yates Lab, Johns Hopkins University"
+version: 1.0.0
+date-released: "2026-08-07"
+license: MIT
+url: "https://github.com/Kishaz/ngs-pipeline"
+repository-code: "https://github.com/Kishaz/ngs-pipeline"
+# No associated publication or DOI yet. If you publish this work, mint a DOI
+# (e.g. via Zenodo) and add `doi:` / a `preferred-citation:` block here.
