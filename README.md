@@ -70,7 +70,7 @@ Raw FASTQ
 
 A condensed on-ramp — see [Quick Start](#quick-start) for full detail and [Tools and Versions Used](#tools-and-versions-used) for the exact environment this pipeline was run with.
 
-1. **Dependencies** — Snakemake (≥ 7.0, typically in a conda env), plus the report/plugin packages:
+1. **Dependencies** — Snakemake (≥ 8.0, typically in a conda env), plus the report/plugin packages:
    ```bash
    pip install --user fpdf2 pandas Pillow
    pip install snakemake-executor-plugin-slurm   # SLURM profile only
@@ -617,7 +617,7 @@ The exact tool versions this pipeline is configured to load (from the `tools:` b
 
 | Tool | Version (as configured) | Activation | Stage |
 |------|------------------------|-----------|-------|
-| Snakemake | ≥ 7.0 (`min_version` in `Snakefile`; run from the `snakemake` conda env) | conda | Orchestration |
+| Snakemake | ≥ 8.0 (`min_version` in `Snakefile`; run from the `snakemake` conda env) | conda | Orchestration |
 | fastp | 1.0.1 | module | Read QC |
 | FastQC | 0.12.1 | module | Read QC |
 | MultiQC | 1.20 | module | Read QC |

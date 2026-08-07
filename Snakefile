@@ -16,7 +16,7 @@ import os
 import subprocess
 from snakemake.utils import min_version
 
-min_version("7.0")
+min_version("8.0")
 
 configfile: "config/config.yaml"
 
