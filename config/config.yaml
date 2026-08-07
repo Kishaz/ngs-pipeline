@@ -1,0 +1,154 @@
+# =============================================================================
+# NGS Pipeline Configuration
+# Supports: RNAseq, WES, WGS | Paired-End & Single-End
+#
+# RESOURCE LAYOUT
+# ---------------
+#   resources/GRCh38_v48/
+#   ├── genome/          GRCh38 FASTA + all indices (bwa-mem2, samtools)
+#   ├── hisat2_index/    Splice-aware HISAT2 index
+#   ├── annotation/      GENCODE v48 GTF + BED
+#   ├── known_sites/     BQSR VCFs (dbSNP, Mills, known indels)
+#   └── intervals/       WES capture BED files (optional)
+#
+# =============================================================================
+
+# --- Input discovery ---
+# Set input_dir to auto-generate samples.tsv from a directory of FASTQ/BAM files.
+# Leave empty ("") to use a manually-created samples.tsv instead.
+input_dir: ""
+default_seq_type: "rnaseq"                 # rnaseq | wes | wgs
+
+# --- Sample manifest ---
+samples: "config/samples.tsv"
+
+# --- Resource base directory ---
+resources_dir: "/projects/yateslab_genomics/sam/ngs_pipeline/resources/GRCh38_v48"
+
+# --- Reference genome ---
+ref:
+  fasta: "/projects/yateslab_genomics/sam/ngs_pipeline/resources/GRCh38_v48/genome/GRCh38.primary_assembly.genome.fa"
+
+# --- Aligner indices ---
+hisat2_index: "/projects/yateslab_genomics/sam/ngs_pipeline/resources/GRCh38_v48/hisat2_index/grch38_v48"
+bwa_mem2_index: "/projects/yateslab_genomics/sam/ngs_pipeline/resources/GRCh38_v48/genome/GRCh38.primary_assembly.genome.fa"
+
+# --- Gene annotation ---
+gtf: "/projects/yateslab_genomics/sam/ngs_pipeline/resources/GRCh38_v48/annotation/gencode.v48.primary_assembly.annotation.gtf"
+
+# --- Known sites for BQSR ---
+known_sites:
+  - "/projects/yateslab_genomics/sam/ngs_pipeline/resources/GRCh38_v48/known_sites/Homo_sapiens_assembly38.dbsnp138.vcf.gz"
+  - "/projects/yateslab_genomics/sam/ngs_pipeline/resources/GRCh38_v48/known_sites/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz"
+  - "/projects/yateslab_genomics/sam/ngs_pipeline/resources/GRCh38_v48/known_sites/Homo_sapiens_assembly38.known_indels.vcf.gz"
+
+# --- Output directory ---
+results_dir: "results"
+
+# --- QC ---
+qc:
+  fastp:
+    qualified_quality_phred: 20
+    length_required: 50
+  fastqc:
+    threads: 30
+
+# --- Alignment ---
+alignment:
+  bwa_mem2:
+    extra: "-Y"
+  hisat2:
+    extra: "--dta"
+  samtools_sort:
+    mem_per_thread: "4G"
+  mark_duplicates:
+    extra: "--REMOVE_DUPLICATES false --VALIDATION_STRINGENCY LENIENT"
+
+# --- BQSR (DNA only) ---
+bqsr:
+  enabled: true
+
+# --- Variant calling (DNA only) ---
+variant_calling:
+  haplotypecaller:
+    extra: ""
+    intervals: ""
+  genomicsdb:
+    intervals: ""
+    batch_size: 50
+  genotypegvcfs:
+    extra: ""
+
+# --- Quantification (RNA only) ---
+quantification:
+  featurecounts:
+    extra: "-t exon -g gene_id --primary"
+    strandedness: 0
+
+# --- Ancestry estimation ---
+ancestry:
+  enabled: true
+  container: "/projects/yateslab_genomics/sam/ngs_pipeline/resources/GRCh38_v48/ancestry/ancestry-pipeline.sif"
+  runtime: "singularity"
+  seq_type_map:
+    rnaseq: "rna"
+    wes: "exome"
+    wgs: "wgs"
+  subpops: true
+  threads: 30
+
+# --- PDF reports ---
+reports:
+  lab_logo: "resources/Lab_Logo.png"
+  project_name: "NGS Pipeline"
+
+# =============================================================================
+# TOOL ACTIVATION
+# =============================================================================
+# Each tool is either loaded via "module load" or "conda activate".
+# Set type: "module" or "conda" for each tool.
+#
+# module → uses Snakemake envmodules directive (module load <name>)
+# conda  → activates a conda environment in the shell block
+#
+# For conda: "name" is the conda environment name.
+# For module: "name" is the module string (e.g., "fastp/1.0.1").
+# =============================================================================
+
+tools:
+  fastp:
+    type: "module"
+    name: "fastp/1.0.1"
+  fastqc:
+    type: "module"
+    name: "fastqc/0.12.1"
+  multiqc:
+    type: "module"
+    name: "multiqc/1.20"
+  bwa_mem2:
+    type: "conda"
+    name: "bwa-mem2"
+  hisat2:
+    type: "module"
+    name: "HISAT2/2.2.1"
+  samtools:
+    type: "module"
+    name: "samtools/1.21"
+  gatk:
+    type: "module"
+    name: "gatk/4.6.2.0"
+  subread:
+    type: "conda"
+    name: "subread"
+  singularity:
+    type: "module"
+    name: ""                           # Empty = not a module; must be in PATH
+  python3:
+    type: "module"
+    name: "python311"
+  anaconda3:
+    type: "module"
+    name: "anaconda3/2023.09"
+  R:
+    type: "module"
+    name: "R/4.4.2+Bioconductor"

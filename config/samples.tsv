@@ -1,0 +1,2 @@
+sample	R1	R2	seq_type
+PDA29	/projects/yates_lab_hpc/sam/smwambu1/pdac/data/clean_data/PDA29_R1.fastq.gz	/projects/yates_lab_hpc/sam/smwambu1/pdac/data/clean_data/PDA29_R2.fastq.gz	rnaseq

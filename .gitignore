@@ -1,0 +1,23 @@
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Pipeline outputs / run artifacts
+results/
+results_*/
+.snakemake/
+
+# Large reference data (public reference files — not versioned)
+resources/known_sites/
+resources/GRCh38_v48/
+
+# Local editor / assistant settings
+.claude/settings.local.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Logs
+*.log

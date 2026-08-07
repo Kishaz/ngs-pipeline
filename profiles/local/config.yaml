@@ -1,0 +1,17 @@
+# =============================================================================
+# Local Execution Profile (no SLURM)
+# Usage: snakemake --profile profiles/local
+#
+# Runs all jobs on the current machine / interactive session.
+# Suitable for: srun sessions, workstations, testing.
+# =============================================================================
+
+cores: 30                              # Max parallel cores
+use-envmodules: true                   # Load HPC modules (module load ...)
+latency-wait: 120
+keep-going: true
+rerun-incomplete: true
+printshellcmds: true
+
+resources:
+  mem_mb: 64000                        # Total memory budget
