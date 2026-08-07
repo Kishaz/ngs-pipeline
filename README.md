@@ -617,15 +617,15 @@ The exact tool versions this pipeline is configured to load (from the `tools:` b
 
 | Tool | Version (as configured) | Activation | Stage |
 |------|------------------------|-----------|-------|
-| Snakemake | ≥ 8.0 (`min_version` in `Snakefile`; run from the `snakemake` conda env) | conda | Orchestration |
+| Snakemake | 9.17.2 *(run environment; `Snakefile` requires ≥ 8.0)* | conda | Orchestration |
 | fastp | 1.0.1 | module | Read QC |
 | FastQC | 0.12.1 | module | Read QC |
 | MultiQC | 1.20 | module | Read QC |
-| bwa-mem2 | conda env `bwa-mem2` *(version set by the env, not pinned in config)* | conda | DNA alignment |
+| bwa-mem2 | 2.3 (conda env `bwa-mem2`, bioconda) | conda | DNA alignment |
 | HISAT2 | 2.2.1 | module | RNA alignment |
 | SAMtools | 1.21 | module | BAM processing |
 | GATK | 4.6.2.0 | module | MarkDuplicates, BQSR, variant calling |
-| Subread (featureCounts) | conda env `subread` *(version set by the env, not pinned in config)* | conda | Quantification |
+| Subread (featureCounts) | 2.1.1 (conda env `subread`, bioconda) | conda | Quantification |
 | Singularity | system binary at `/usr/bin/singularity` *(version not pinned)* | PATH | Ancestry container |
 | Python | 3.11 (`python311`) | module | PDF reports (fpdf2, pandas, Pillow) |
 | R + Bioconductor | 4.4.2 | module | Ancestry plots (ggplot2, gridExtra; optional readxl) |
@@ -642,7 +642,7 @@ The exact tool versions this pipeline is configured to load (from the `tools:` b
 | BQSR known sites | GATK resource bundle — dbSNP138, Mills & 1000G gold-standard indels, 1000G Phase 1 high-confidence SNPs, known indels |
 | Ancestry reference panel | 1000 Genomes (Phase 3), ancestry-informative markers |
 
-> **Reproducibility note:** `bwa-mem2` and `subread` are activated by conda-env *name* only, so their exact versions depend on when the env was built. For a fully pinned environment, record `conda list` output or pin versions in the env spec.
+> **Reproducibility note:** `bwa-mem2` and `subread` are activated by conda-env *name*, so the versions above reflect the current envs (`bwa-mem2` 2.3, `subread` 2.1.1 from bioconda) rather than a hard pin in config. Pin them in the env spec if you need them frozen across rebuilds.
 
 ---
 
