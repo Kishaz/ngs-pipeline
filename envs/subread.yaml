@@ -1,0 +1,19 @@
+# =============================================================================
+# Conda environment: subread (RNA quantification — provides featureCounts)
+#
+# The `name:` MUST match tools.subread.name in config/config.yaml ("subread"),
+# because the pipeline activates it with `source activate subread`
+# (see get_activate_cmd() in rules/common.smk).
+#
+# Create:  conda env create -f envs/subread.yaml
+# Update:  conda env update -f envs/subread.yaml --prune
+#
+# Requires strict channel priority so bioconda resolves correctly:
+#   conda config --set channel_priority strict
+# =============================================================================
+name: subread
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - subread=2.1.1

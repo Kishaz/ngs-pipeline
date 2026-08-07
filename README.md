@@ -75,6 +75,11 @@ A condensed on-ramp — see [Quick Start](#quick-start) for full detail and [Too
    pip install --user fpdf2 pandas Pillow
    pip install snakemake-executor-plugin-slurm   # SLURM profile only
    ```
+   Create the two conda tool environments (names must match `config.yaml`):
+   ```bash
+   conda env create -f envs/bwa-mem2.yaml
+   conda env create -f envs/subread.yaml
+   ```
 2. **References** (one-time, ~60 GB) — `setup_references.sh` downloads and indexes GRCh38, GENCODE v48, the GATK known-sites bundle, and the ancestry container:
    ```bash
    bash scripts/setup_references.sh --outdir /path/to/ngs_resources
@@ -642,7 +647,7 @@ The exact tool versions this pipeline is configured to load (from the `tools:` b
 | BQSR known sites | GATK resource bundle — dbSNP138, Mills & 1000G gold-standard indels, 1000G Phase 1 high-confidence SNPs, known indels |
 | Ancestry reference panel | 1000 Genomes (Phase 3), ancestry-informative markers |
 
-> **Reproducibility note:** `bwa-mem2` and `subread` are activated by conda-env *name*, so the versions above reflect the current envs (`bwa-mem2` 2.3, `subread` 2.1.1 from bioconda) rather than a hard pin in config. Pin them in the env spec if you need them frozen across rebuilds.
+> **Reproducibility note:** `bwa-mem2` and `subread` are activated by conda-env *name*. Pinned specs live in [`envs/`](envs/) — recreate the envs with `conda env create -f envs/bwa-mem2.yaml` and `conda env create -f envs/subread.yaml` (the `name:` in each matches `config/config.yaml`). For byte-exact rebuilds, generate explicit lockfiles on the target machine with `conda list -n <env> --explicit > envs/<env>.lock`.
 
 ---
 

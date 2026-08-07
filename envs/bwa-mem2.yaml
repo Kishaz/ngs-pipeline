@@ -1,0 +1,19 @@
+# =============================================================================
+# Conda environment: bwa-mem2 (DNA alignment — WES/WGS)
+#
+# The `name:` MUST match tools.bwa_mem2.name in config/config.yaml ("bwa-mem2"),
+# because the pipeline activates it with `source activate bwa-mem2`
+# (see get_activate_cmd() in rules/common.smk).
+#
+# Create:  conda env create -f envs/bwa-mem2.yaml
+# Update:  conda env update -f envs/bwa-mem2.yaml --prune
+#
+# Requires strict channel priority so bioconda resolves correctly:
+#   conda config --set channel_priority strict
+# =============================================================================
+name: bwa-mem2
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - bwa-mem2=2.3
