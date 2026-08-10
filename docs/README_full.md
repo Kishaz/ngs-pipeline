@@ -640,7 +640,7 @@ Each report produces both a machine-readable TSV summary and a visual PDF.
 executor: slurm
 default-resources:
   slurm_account: "yateslab_genomics"
-  slurm_partition: "general"
+  slurm_partition: "cpu"      # cluster-specific — check `sinfo -s`
   mem_mb: 8000
   runtime: 60
   cpus_per_task: 1
