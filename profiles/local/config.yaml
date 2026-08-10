@@ -2,8 +2,15 @@
 # Local Execution Profile (no SLURM)
 # Usage: snakemake --profile profiles/local
 #
-# Runs all jobs on the current machine / interactive session.
-# Suitable for: srun sessions, workstations, testing.
+# Runs ALL jobs as subprocesses on the current node — no scheduler, no per-job
+# memory enforcement. Suitable ONLY for: quick tests, a handful of samples, or
+# debugging a single rule.
+#
+# ⚠  For real cohorts / many samples / long runs, use profiles/slurm instead.
+#    Local execution packs heavy rules onto one node and can be OOM-killed
+#    (SIGKILL / "signal 9") — e.g. an uncapped `samtools sort` at 30 threads
+#    × 4G ≈ 120 GB. The SLURM profile fans work across the cluster and enforces
+#    per-job memory. See the "Long runs & large cohorts" section of the README.
 # =============================================================================
 
 cores: 30                              # Max parallel cores
@@ -12,6 +19,14 @@ latency-wait: 120
 keep-going: true
 rerun-incomplete: true
 printshellcmds: true
+
+# --- Safety caps so memory-heavy rules don't exhaust a single node's RAM ---
+# (The SLURM profile sizes these per-job; here we cap threads to keep local
+#  runs alive. samtools_sort at 8 threads × 4G ≈ 32 GB, within the budget below.)
+set-threads:
+  bwa_mem2_align: 8
+  hisat2_align: 8
+  samtools_sort: 8
 
 resources:
   mem_mb: 64000                        # Total memory budget

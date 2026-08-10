@@ -1,6 +1,12 @@
 # =============================================================================
-# SLURM Cluster Profile for Snakemake
+# SLURM Cluster Profile for Snakemake  ★ RECOMMENDED for cohorts / long runs ★
 # Usage: snakemake --profile profiles/slurm
+#
+# Submits each rule as its own SLURM job, fanning work across the cluster with
+# per-job memory enforced — this is how you use the HPC's parallelism and avoid
+# the single-node OOMs that profiles/local is prone to. For long multi-sample
+# runs, drive it from `tmux` on a login node so it survives disconnects (see the
+# "Long runs & large cohorts" section of the README).
 # =============================================================================
 
 executor: slurm
@@ -85,7 +91,10 @@ set-resources:
 # --- Snakemake execution settings ---
 use-envmodules: true
 latency-wait: 120
-jobs: 50
+jobs: 50                               # THROUGHPUT KNOB: max concurrent SLURM jobs.
+                                       # Raise toward your cohort size (e.g. 100) to
+                                       # process more samples in parallel, within your
+                                       # account's QOS / partition limits.
 keep-going: true
 rerun-incomplete: true
 printshellcmds: true

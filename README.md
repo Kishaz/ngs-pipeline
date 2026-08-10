@@ -87,7 +87,7 @@ A condensed on-ramp — see [Quick Start](#quick-start) for full detail and [Too
 3. **Configure** — edit `config/config.yaml`: resource paths, `input_dir` (or `config/samples.tsv`), and your cluster's `module`/`conda` tool names.
 4. **Run**:
    ```bash
-   snakemake --profile profiles/slurm      # cluster;  profiles/local for an interactive session
+   snakemake --profile profiles/slurm      # recommended for cohorts;  profiles/local for quick tests only
    ```
 
 ---
@@ -408,13 +408,39 @@ snakemake --profile profiles/slurm -n
 
 ### 7. Execute
 
+**Pick the profile by workload size — this matters for both speed and stability:**
+
+| Workload | Profile | Why |
+|----------|---------|-----|
+| Real cohorts, many samples, long runs | **`profiles/slurm`** ★ recommended | Submits each rule as its own SLURM job, fanning work across the cluster with per-job memory enforced. This is how you actually use the HPC's parallelism. |
+| Quick tests, a few samples, single-rule debugging | `profiles/local` | Runs on one node with no scheduler. Simple, but packs heavy rules onto one machine and can be **OOM-killed (SIGKILL)** — prefer SLURM for anything real. |
+
 ```bash
-# SLURM (job submission)
+# Recommended for cohorts — parallel across the cluster
 snakemake --profile profiles/slurm
 
-# Local (interactive session)
+# Local — quick tests / small inputs only
 snakemake --profile profiles/local
 ```
+
+**Throughput knob:** `jobs:` in `profiles/slurm/config.yaml` (default 50) caps how many SLURM jobs run at once. Raise it toward your cohort size to process more samples in parallel, within your account's QOS/partition limits. Per-rule threads/memory are tuned in the same file's `set-threads` / `set-resources`.
+
+#### Long runs & large cohorts — run durably (recommended)
+
+A multi-sample run can take hours to days, so it must not die when your terminal session ends. Run the Snakemake **controller in `tmux` on a login node** — it only submits and monitors jobs (all compute happens in the SLURM jobs), so it's lightweight and survives disconnects:
+
+```bash
+tmux new -s ngs
+module load anaconda3 && source activate snakemake
+cd /path/to/ngs_pipeline
+snakemake --profile profiles/slurm -n                  # dry-run: confirm the plan first
+snakemake --profile profiles/slurm --rerun-incomplete  # launch
+# detach: Ctrl-b then d      reattach: tmux attach -t ngs   (from the SAME login node)
+```
+
+Monitor from any shell with `squeue -u $USER`. If a run is interrupted, just relaunch the same command — Snakemake **resumes** from completed outputs; it never restarts finished work. (Switching between `profiles/local` and `profiles/slurm` also resumes — completed files are reused either way, since resume is driven by on-disk outputs, not the executor.)
+
+> **Why not just use `profiles/local` for big runs?** Local execution has no per-job memory enforcement, so heavy rules competing on one node get OOM-killed (the `hisat2-align died with signal 9` failure mode). SLURM gives each job its own enforced memory and spreads them across nodes.
 
 ### 8. Resume after failure
 
