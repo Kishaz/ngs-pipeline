@@ -14,7 +14,8 @@ executor: slurm
 # --- Default resources (applied to all rules unless overridden) ---
 default-resources:
   slurm_account: "yateslab_genomics"
-  slurm_partition: "general"
+  slurm_partition: "cpu"               # DISCOVERY's default CPU partition (10-day limit).
+                                       # NOTE: "general" is not valid here — verify with `sinfo -s`.
   mem_mb: 8000
   runtime: 60
   cpus_per_task: 1
