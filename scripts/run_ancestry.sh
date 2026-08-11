@@ -203,8 +203,27 @@ echo "Running ancestry pipeline..."
 echo "  Runtime: $RUNTIME"
 echo ""
 
+# -----------------------------------------------------------------------------
+# Bind the host data filesystems so staged BAM symlinks resolve inside the
+# container. Staged BAMs are symlinks that can point into /scratch and/or
+# /projects (e.g. when results_dir lives on scratch via a symlink from
+# /projects). The container only mounts the staging + output dirs by default,
+# so those symlink targets must be bound explicitly or the container sees
+# "No .bam files found in /input_data".
+#
+# Defaults suit DISCOVERY (RIT HPC). Override for other clusters with:
+#   export ANCESTRY_EXTRA_BINDS="/path1,/path2"
+# -----------------------------------------------------------------------------
+EXTRA_BIND_ARGS=""
+IFS=',' read -ra _EXTRA_BINDS <<< "${ANCESTRY_EXTRA_BINDS:-/scratch,/projects}"
+for _b in "${_EXTRA_BINDS[@]}"; do
+    [[ -d "$_b" ]] && EXTRA_BIND_ARGS="${EXTRA_BIND_ARGS} --bind ${_b}"
+done
+echo "  Extra binds: ${EXTRA_BIND_ARGS:-<none>}"
+
 if [[ "$RUNTIME" == "singularity" ]]; then
     singularity run \
+        ${EXTRA_BIND_ARGS} \
         --bind "${INPUT_BIND}" \
         --bind "${OUTDIR_ABS}:/output" \
         "$CONTAINER" \
