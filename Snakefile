@@ -23,7 +23,7 @@ configfile: "config/config.yaml"
 # ---------------------------------------------------------------------------
 # Auto-discover samples from input_dir (if configured)
 # ---------------------------------------------------------------------------
-_input_dir = config.get("input_dir", "").strip()
+_input_dir = (config.get("input_dir") or "").strip()
 if _input_dir:
     _discovery_script = os.path.join(workflow.basedir, "scripts", "generate_samples.py")
     _seq_type = config.get("default_seq_type", "rnaseq")
