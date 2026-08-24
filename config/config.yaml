@@ -49,6 +49,11 @@ results_dir: ""      # empty = auto-generate a dated folder results_YYYYMMDD_HHM
                      # auto-dated folder elsewhere (e.g. scratch).
 # results_base: "/scratch/<user>"   # optional: where the auto-dated folder is created
                                      # (default: the ngs_pipeline repo directory)
+# publish_dir: ""                    # on success, small final deliverables (counts
+                                     # matrix, QC/alignment/ancestry reports, ancestry
+                                     # summary+plots, DNA VCF) are COPIED here so they
+                                     # survive a scratch purge. Default:
+                                     # <repo>/deliverables/<run-name>. Set "" to disable.
 
 # --- QC ---
 qc:

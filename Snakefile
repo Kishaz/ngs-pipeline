@@ -230,6 +230,40 @@ onsuccess:
         print(f"  Counts Matrix:    {rd}/counts/gene_counts_matrix.tsv")
     if config["ancestry"]["enabled"]:
         print(f"  Ancestry Report:  {rd}/ancestry/reports/ancestry_report.pdf")
+
+    # --- Publish small final deliverables off scratch to a persistent dir ---
+    # Big intermediates (BAMs, temp files) stay in results_dir (scratch); the
+    # small shareable outputs are COPIED to publish_dir so they survive a scratch
+    # purge. Defaults to <repo>/deliverables/<run-name>. Set publish_dir: "" to
+    # disable, or point it at any persistent path.
+    import os as _os, shutil as _sh, glob as _gl
+    _pub_cfg = config.get("publish_dir", "__DEFAULT__")
+    _pub = (_os.path.join(workflow.basedir, "deliverables",
+                          _os.path.basename(rd.rstrip("/")))
+            if _pub_cfg == "__DEFAULT__" else (_pub_cfg or "").strip())
+    if _pub:
+        _items = [
+            "counts/gene_counts_matrix.tsv",
+            "qc/reports", "qc/multiqc/multiqc_report.html", "alignment/reports",
+            "ancestry/ancestry_summary_superpops.tsv", "ancestry/reports",
+            "variants/joint",  # DNA joint VCF (may be large)
+        ]
+        try:
+            for _rel in _items:
+                _src, _dst = _os.path.join(rd, _rel), _os.path.join(_pub, _rel)
+                if _os.path.isdir(_src):
+                    _sh.copytree(_src, _dst, dirs_exist_ok=True)
+                elif _os.path.isfile(_src):
+                    _os.makedirs(_os.path.dirname(_dst), exist_ok=True)
+                    _sh.copy2(_src, _dst)
+            for _pat in ("ancestry/*.png", "ancestry/*.svg"):
+                for _src in _gl.glob(_os.path.join(rd, _pat)):
+                    _dst = _os.path.join(_pub, "ancestry", _os.path.basename(_src))
+                    _os.makedirs(_os.path.dirname(_dst), exist_ok=True)
+                    _sh.copy2(_src, _dst)
+            print(f"  Deliverables:     published to {_pub}")
+        except Exception as _e:
+            print(f"  WARNING: could not publish deliverables to {_pub}: {_e}")
     print("=" * 60)
 
 

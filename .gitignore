@@ -24,3 +24,6 @@ __pycache__/
 
 # Auto-generated results_dir marker
 .results_dir
+
+# Published deliverables (copied from scratch on success)
+deliverables/
