@@ -43,6 +43,32 @@ if _input_dir:
 # ---------------------------------------------------------------------------
 import sys
 
+# ---------------------------------------------------------------------------
+# Resolve results_dir — auto-generate a dated folder when none is provided.
+#
+# The chosen name is PERSISTED to .results_dir so that resumes (which re-parse
+# this file) reuse the SAME folder instead of minting a new timestamp each run
+# (which would silently restart the pipeline).
+#   - Provide results_dir=... (config or --config) to use an explicit folder.
+#   - Set results_base=... to choose WHERE the auto-dated folder is created
+#     (default: current directory) — e.g. a scratch path.
+#   - To start a genuinely new run in this directory, delete .results_dir.
+# ---------------------------------------------------------------------------
+_results_dir = (config.get("results_dir") or "").strip()
+if not _results_dir:
+    _marker = ".results_dir"
+    if os.path.isfile(_marker):
+        with open(_marker) as _f:
+            _results_dir = _f.read().strip()
+    if not _results_dir:
+        from datetime import datetime
+        _base = (config.get("results_base") or ".").rstrip("/")
+        _results_dir = f"{_base}/results_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        with open(_marker, "w") as _f:
+            _f.write(_results_dir)
+    print(f"[results_dir] not provided — using {_results_dir} (persisted in .results_dir)")
+config["results_dir"] = _results_dir
+
 samples_df = (
     pd.read_csv(config["samples"], sep="\t", dtype=str, comment="#")
     .fillna("")

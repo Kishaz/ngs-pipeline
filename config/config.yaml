@@ -43,7 +43,11 @@ known_sites:
   - "/projects/yateslab_genomics/sam/ngs_pipeline/resources/GRCh38_v48/known_sites/Homo_sapiens_assembly38.known_indels.vcf.gz"
 
 # --- Output directory ---
-results_dir: "results"
+results_dir: ""      # empty = auto-generate a dated folder results_YYYYMMDD_HHMMSS
+                     # (persisted in .results_dir so resumes reuse it). Set an
+                     # explicit path here, or set results_base to place the
+                     # auto-dated folder elsewhere (e.g. scratch).
+# results_base: "/scratch/<user>"   # optional: where auto-dated results_dir is created
 
 # --- QC ---
 qc:

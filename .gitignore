@@ -21,3 +21,6 @@ __pycache__/
 
 # Logs
 *.log
+
+# Auto-generated results_dir marker
+.results_dir
