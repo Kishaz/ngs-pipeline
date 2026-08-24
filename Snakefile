@@ -155,6 +155,7 @@ rule stage_ancestry:
 # Master rule — chains all stages
 # ---------------------------------------------------------------------------
 rule all:
+    default_target: True
     input:
         rules.stage_ancestry.input,
 
