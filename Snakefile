@@ -44,26 +44,35 @@ if _input_dir:
 import sys
 
 # ---------------------------------------------------------------------------
-# Resolve results_dir — auto-generate a dated folder when none is provided.
+# Resolve results_dir.
 #
-# The chosen name is PERSISTED to .results_dir so that resumes (which re-parse
-# this file) reuse the SAME folder instead of minting a new timestamp each run
-# (which would silently restart the pipeline).
-#   - Provide results_dir=... (config or --config) to use an explicit folder.
-#   - Set results_base=... to choose WHERE the auto-dated folder is created
-#     (default: the ngs_pipeline repo directory) — e.g. a scratch path.
-#   - To start a genuinely new run in this directory, delete .results_dir.
+#   - results_dir ABSOLUTE  -> used as-is.
+#   - results_dir RELATIVE  -> placed UNDER results_base (so results_base is the
+#                              parent for named runs, e.g. base=/scratch/me +
+#                              results_dir=run1 -> /scratch/me/run1).
+#   - results_dir EMPTY     -> auto-generate results_<timestamp> under
+#                              results_base, PERSISTED to .results_dir so resumes
+#                              (which re-parse this file) reuse the SAME folder
+#                              instead of minting a new timestamp (which would
+#                              silently restart the pipeline). Delete .results_dir
+#                              to start a genuinely new auto-dated run.
+#
+#   results_base defaults to the ngs_pipeline repo directory; set it to a
+#   scratch path so relative/auto-dated results land there.
 # ---------------------------------------------------------------------------
 _results_dir = (config.get("results_dir") or "").strip()
-if not _results_dir:
+_base = (config.get("results_base") or workflow.basedir).rstrip("/")
+if _results_dir:
+    if not os.path.isabs(_results_dir):
+        _results_dir = os.path.join(_base, _results_dir)
+else:
     _marker = os.path.join(workflow.basedir, ".results_dir")
     if os.path.isfile(_marker):
         with open(_marker) as _f:
             _results_dir = _f.read().strip()
     if not _results_dir:
         from datetime import datetime
-        _base = (config.get("results_base") or workflow.basedir).rstrip("/")
-        _results_dir = f"{_base}/results_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        _results_dir = os.path.join(_base, f"results_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
         with open(_marker, "w") as _f:
             _f.write(_results_dir)
     print(f"[results_dir] not provided — using {_results_dir} (persisted in .results_dir)")
