@@ -47,7 +47,8 @@ results_dir: ""      # empty = auto-generate a dated folder results_YYYYMMDD_HHM
                      # (persisted in .results_dir so resumes reuse it). Set an
                      # explicit path here, or set results_base to place the
                      # auto-dated folder elsewhere (e.g. scratch).
-# results_base: "/scratch/<user>"   # optional: where auto-dated results_dir is created
+# results_base: "/scratch/<user>"   # optional: where the auto-dated folder is created
+                                     # (default: the ngs_pipeline repo directory)
 
 # --- QC ---
 qc:
