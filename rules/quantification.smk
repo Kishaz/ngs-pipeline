@@ -15,10 +15,11 @@ rule featurecounts:
     params:
         extra=config["quantification"]["featurecounts"]["extra"],
         strandedness=config["quantification"]["featurecounts"]["strandedness"],
-        pe_flag=lambda wc: "-p --countReadPairs" if is_paired(wc.sample) else "",
         activate=get_activate_cmd("subread"),
     wildcard_constraints:
         sample="|".join(RNA_SAMPLES) if RNA_SAMPLES else "NONE",
+    envmodules:
+        *get_tool_modules("samtools"),
     threads: 16
     resources:
         mem_mb=8000,
@@ -29,12 +30,21 @@ rule featurecounts:
         """
         {params.activate}
 
+        # featureCounts needs -p --countReadPairs for paired-end BAMs and must
+        # NOT get it for single-end. The manifest can't tell us for BAM-input
+        # samples (no R2), so detect from the BAM's first read flag (bit 0x1).
+        FLAG=$(samtools view {input.bam} 2>/dev/null | head -1 | cut -f2 || true)
+        PE=""
+        if [ -n "$FLAG" ] && [ $(( FLAG & 1 )) -ne 0 ]; then
+            PE="-p --countReadPairs"
+        fi
+
         featureCounts \
             -a {input.gtf} \
             -o {output.counts} \
             {params.extra} \
             -s {params.strandedness} \
-            {params.pe_flag} \
+            $PE \
             -T {threads} \
             {input.bam} \
             2> {log}
