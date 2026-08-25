@@ -290,8 +290,10 @@ if (has_metadata) {
         warning(sprintf("Metadata missing for %d sample(s): %s",
                         length(missing), paste(missing, collapse = ", ")))
         missing_df <- data.frame(sample_id = missing, stringsAsFactors = FALSE)
-        for (mc in meta_cols) missing_df[[mc]] <- "N/A"
-        meta_matched <- rbind(meta_matched, missing_df)
+        for (mc in setdiff(colnames(meta_matched), "sample_id"))
+            missing_df[[mc]] <- "N/A"
+        meta_matched <- rbind(meta_matched,
+                              missing_df[, colnames(meta_matched), drop = FALSE])
     }
 }
 
