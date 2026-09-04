@@ -92,10 +92,26 @@ set-resources:
 # --- Snakemake execution settings ---
 use-envmodules: true
 latency-wait: 120
-jobs: 50                               # THROUGHPUT KNOB: max concurrent SLURM jobs.
-                                       # Raise toward your cohort size (e.g. 100) to
-                                       # process more samples in parallel, within your
-                                       # account's QOS / partition limits.
+
+# THROUGHPUT KNOB: max concurrent SLURM jobs. Alignment is per-sample and the
+# dominant cost, so this is what sets cohort wall-clock — set it to (at least)
+# your cohort size so every sample can align at once, bounded by your account's
+# QOS / partition limits. Check your ceiling with:
+#   sacctmgr -n show assoc user=$USER format=account,qos,maxjobs,maxsubmit
+#   sinfo -o "%P %a %l %D %c" -h        # partition cpu limits / node core counts
+# 167 samples × 16 cpus would be ~2600 cores if fully parallel — the cluster/QOS
+# will queue the overflow automatically, so it is safe to set this high.
+jobs: 150
+
+# ROBUSTNESS on long many-sample runs: retry a job that dies from a transient
+# node / filesystem hiccup instead of losing that sample. keep-going means one
+# genuinely-bad sample never stops the rest of the cohort.
+retries: 2
 keep-going: true
+
+# Be gentle on the scheduler when hundreds of jobs are in flight.
+max-jobs-per-second: 10
+max-status-checks-per-second: 5
+
 rerun-incomplete: true
 printshellcmds: true
