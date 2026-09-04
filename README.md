@@ -1,6 +1,6 @@
 # NGS Pipeline
 
-A production-grade Snakemake pipeline for processing **RNAseq**, **WES**, and **WGS** data through quality control, alignment, base quality recalibration, variant calling / gene quantification, and genetic ancestry estimation.
+A production-grade Snakemake pipeline for processing **RNAseq**, **WES**, and **WGS** data through quality control, alignment, base quality recalibration, variant calling / gene quantification, RNA-seq QC (automatic strandedness, RSeQC & Picard metrics), and genetic ancestry estimation — with an integrated MultiQC report and per-run provenance.
 
 Supports both **paired-end** and **single-end** reads, **FASTQ** and **pre-aligned BAM** inputs with automatic sample discovery. Each stage writes outputs to dedicated directories in standard formats for downstream analysis.
 
@@ -43,7 +43,7 @@ Raw FASTQ
 │  (DNA only)       │    │  (RNA only)        │
 │  HaplotypeCaller  │    │  featureCounts     │
 │  → GenomicsDB     │    │  → merged matrix   │
-│  → GenotypeGVCFs  │    │                    │
+│  → GenotypeGVCFs  │    │  + RSeQC / Picard  │
 │  Output: joint VCF│    │  Output: counts TSV│
 └────────┬──────────┘    └────────┬───────────┘
          │                        │
@@ -75,12 +75,14 @@ A condensed on-ramp — see [Quick Start](#quick-start) for full detail and [Too
    pip install --user fpdf2 pandas Pillow
    pip install snakemake-executor-plugin-slurm   # SLURM profile only
    ```
-   Create the two conda tool environments (names must match `config.yaml`):
+   Create the conda tool environments (names must match `config.yaml`):
    ```bash
    conda env create -f envs/bwa-mem2.yaml
    conda env create -f envs/subread.yaml
+   conda create -n rseqc -c bioconda -c conda-forge rseqc   # RNA-seq QC (strandedness, read distribution)
    ```
-2. **References** (one-time, ~60 GB) — `setup_references.sh` downloads and indexes GRCh38, GENCODE v48, the GATK known-sites bundle, and the ancestry container:
+   (Picard's `CollectRnaSeqMetrics` runs via the GATK module — no separate install.)
+2. **References** (one-time, ~60 GB) — `setup_references.sh` downloads and indexes GRCh38, GENCODE v48 (incl. the RSeQC/Picard RNA-QC references), the GATK known-sites bundle, and the ancestry container:
    ```bash
    bash scripts/setup_references.sh --outdir /path/to/ngs_resources
    ```
@@ -116,10 +118,10 @@ A condensed on-ramp — see [Quick Start](#quick-start) for full detail and [Too
 | Item | Detail |
 |------|--------|
 | **Tool** | [MultiQC](https://multiqc.info/) |
-| **Input** | All FastQC and fastp reports |
-| **Output** | Single aggregated HTML report |
-| **Role** | Combines QC metrics from all samples into one interactive report for batch-level assessment. |
-| **Script** | `scripts/run_multiqc.sh` |
+| **Input** | Read QC (FastQC, fastp) **plus** alignment metrics (HISAT2/bwa summaries, MarkDuplicates, flagstat), featureCounts summaries, and RNA-seq QC (RSeQC, Picard) — it scans `qc/`, `alignment/metrics/`, and `counts/` |
+| **Output** | Single aggregated HTML report spanning read → alignment → quantification → RNA QC |
+| **Role** | One interactive report for batch-level assessment across the whole run, not just read QC — e.g. per-sample strandedness, 5′→3′ bias, and assignment rates side by side. |
+| **Script** | `scripts/run_multiqc.sh` (repeatable `--indir` to aggregate multiple trees) |
 
 | Item | Detail |
 |------|--------|
@@ -208,9 +210,35 @@ A condensed on-ramp — see [Quick Start](#quick-start) for full detail and [Too
 | **Tool** | [featureCounts](http://subread.sourceforge.net/) (from Subread) |
 | **Input** | Markdup BAM + GENCODE GTF annotation |
 | **Output** | Merged gene counts matrix (`gene_counts_matrix.tsv`) *(per-sample counts are temporary — auto-deleted after merging)* |
-| **Parameters** | `-t exon -g gene_id --primary`, strandedness from config |
+| **Parameters** | `-t exon -g gene_id --primary`; strandedness **auto-inferred per sample** (see RNA-seq QC below) or pinned in config |
 | **Role** | Assigns aligned reads to genomic features (exons → genes). The merged matrix has genes as rows and samples as columns — ready for DESeq2, edgeR, or limma-voom. |
 | **Script** | `scripts/run_featurecounts.sh` |
+
+---
+
+### Stage 4c: RNA-seq–specific QC (RNA only)
+
+Runs on the deduplicated BAM and feeds MultiQC. **Strandedness is inferred automatically** and drives featureCounts, so you never hand-set `-s` (a wrong strand silently tanks assignment rates).
+
+| Tool | Output | Role |
+|------|--------|------|
+| [RSeQC `infer_experiment.py`](https://rseqc.sourceforge.net/) | `{sample}.infer_experiment.txt` + `{sample}.strand` | Infers library strandedness and writes the featureCounts `-s` value (0/1/2) that featureCounts **and** Picard then read. |
+| RSeQC `read_distribution.py` | `{sample}.read_distribution.txt` | Fraction of reads over CDS / UTR / intron / intergenic — a degradation/contamination readout. |
+| Picard `CollectRnaSeqMetrics` (via the GATK module) | `{sample}.rna_metrics.txt` | %coding/UTR/intronic/intergenic/ribosomal bases and **MEDIAN_5PRIME_TO_3PRIME_BIAS** — the FFPE/degradation fingerprint. Inter-chromosomal read pairs are filtered out first (they otherwise crash the tool). |
+
+**Config** (`config/config.yaml`):
+```yaml
+quantification:
+  featurecounts:
+    strandedness: "auto"    # or 0 (unstranded) / 1 (forward) / 2 (reverse) to pin it
+
+rnaseq_qc:
+  enabled: true             # false skips all RNA QC (then strandedness must be numeric)
+  bed12:          ".../annotation/gencode.v48.genes.bed12"
+  refflat:        ".../annotation/gencode.v48.refFlat.txt"
+  rrna_intervals: ".../annotation/gencode.v48.rRNA.interval_list"
+```
+The three reference files are generated once from the GTF by `setup_references.sh` (see [Reference Setup](#reference-setup)) — no UCSC tools or network needed.
 
 ---
 
@@ -253,6 +281,7 @@ Files marked 🗑️ are **temporary** — Snakemake auto-deletes them once all 
 
 ```
 results/
+├── provenance.txt                      Run record: pipeline git commit + resolved reference paths
 ├── qc/
 │   ├── fastqc_raw/                     FastQC HTML reports on raw reads
 │   ├── fastp/
@@ -261,7 +290,9 @@ results/
 │   │   ├── {sample}_R1.trimmed.fq.gz   🗑️ Trimmed reads (deleted after alignment)
 │   │   └── {sample}_R2.trimmed.fq.gz   🗑️
 │   ├── fastqc_trimmed/                 FastQC HTML reports on trimmed reads
-│   ├── multiqc/multiqc_report.html     Aggregated QC report
+│   ├── rseqc/                          (RNA) {sample}.infer_experiment.txt, .strand, .read_distribution.txt
+│   ├── picard/                         (RNA) {sample}.rna_metrics.txt (CollectRnaSeqMetrics)
+│   ├── multiqc/multiqc_report.html     Aggregated report (read + alignment + counts + RNA QC)
 │   └── reports/
 │       ├── fastq_qc_summary.tsv        Machine-readable QC metrics
 │       └── fastq_qc_report.pdf         Shareable PDF report
@@ -423,7 +454,11 @@ snakemake --profile profiles/slurm
 snakemake --profile profiles/local
 ```
 
-**Throughput knob:** `jobs:` in `profiles/slurm/config.yaml` (default 50) caps how many SLURM jobs run at once. Raise it toward your cohort size to process more samples in parallel, within your account's QOS/partition limits. Per-rule threads/memory are tuned in the same file's `set-threads` / `set-resources`.
+**Throughput & robustness (large cohorts):** in `profiles/slurm/config.yaml` —
+- `jobs:` (default **150**) caps concurrent SLURM jobs. Alignment is per-sample and the dominant cost, so set this to at least your cohort size to align every sample at once; the cluster queues any overflow. Check your ceiling with `sacctmgr -n show assoc user=$USER format=qos,maxjobs,maxsubmitjobs` and `sinfo -o "%P %l %c" -h`.
+- `retries: 2` re-runs a job that dies from a transient node/FS hiccup instead of losing that sample; with `keep-going`, one genuinely-bad sample never stops the cohort.
+- `max-jobs-per-second` / `max-status-checks-per-second` keep the scheduler happy with hundreds of jobs in flight.
+- Per-rule threads/memory/runtime are tuned in `set-threads` / `set-resources`.
 
 #### Long runs & large cohorts — run durably (recommended)
 
@@ -523,6 +558,7 @@ snakemake --profile profiles/local \
 | BQSR | `base_recalibrator`, `apply_bqsr`, `index_recal_bam` |
 | Variant calling | `haplotype_caller`, `genomics_db_import`, `genotype_gvcfs` |
 | Quantification | `featurecounts`, `merge_counts` |
+| RNA-seq QC | `rseqc_infer_experiment`, `rseqc_read_distribution`, `picard_rnaseqmetrics` |
 | Ancestry | `stage_bams_for_ancestry`, `run_ancestry`, `plot_ancestry` |
 | Reports | `fastq_qc_report`, `alignment_qc_report`, `ancestry_qc_report` |
 
@@ -535,6 +571,7 @@ Every pipeline step has a standalone Bash script that can be run independently o
 | Script | Usage |
 |--------|-------|
 | `generate_samples.py` | `python scripts/generate_samples.py --input-dir /data/ --seq-type rnaseq --output config/samples.tsv` |
+| `gtf_to_rnaseq_refs.py` | `python scripts/gtf_to_rnaseq_refs.py --gtf anno.gtf --dict genome.dict --bed12 out.bed12 --refflat out.refFlat --rrna out.interval_list` |
 | `run_fastp.sh` | `bash scripts/run_fastp.sh --r1 R1.fq.gz [--r2 R2.fq.gz] --out-r1 ... --json ... --html ...` |
 | `run_fastqc.sh` | `bash scripts/run_fastqc.sh --input R1.fq.gz --outdir qc/` |
 | `run_multiqc.sh` | `bash scripts/run_multiqc.sh --indir qc/ --outdir multiqc/` |
@@ -622,6 +659,8 @@ The `-c` flag is **case-insensitive** (`Race`, `race`, `RACE` all work). Invalid
 | BQSR | 16 GB | 1 | 60-120 min |
 | HaplotypeCaller | 16 GB | 4 | 2-12 hours |
 | featureCounts | 8 GB | 4 | 5-15 min |
+| RSeQC (infer/read-dist) | 4 GB | 1 | 1-5 min |
+| Picard CollectRnaSeqMetrics | 8 GB | 2 | 2-10 min |
 | Ancestry | 80 GB | 4 | 15-60 min |
 
 ---
@@ -635,9 +674,25 @@ ngs_resources/
 ├── genome/                   GRCh38 FASTA + all indices (~35 GB)
 ├── hisat2_index/             Splice-aware HISAT2 index (~8 GB)
 ├── annotation/               GENCODE v48 GTF (~1.5 GB)
+│                             + RNA-QC refs: genes.bed12, refFlat.txt, rRNA.interval_list
 ├── known_sites/              BQSR VCFs from GATK resource bundle (~3.3 GB)
 ├── intervals/                WES capture BED files (user-provided)
 └── ancestry/                 Singularity container (~8 GB)
+```
+
+The HISAT2 index is built **annotation-aware** (GENCODE splice sites + exons) when the
+`hisat2_extract_*` helpers are available. The RNA-QC references (BED12 for RSeQC, refFlat +
+rRNA interval_list for Picard) are derived from the GTF by `scripts/gtf_to_rnaseq_refs.py`
+— **no UCSC tools and no network**, so it works behind a locked-down proxy. To (re)generate
+them standalone:
+
+```bash
+python scripts/gtf_to_rnaseq_refs.py \
+  --gtf annotation/gencode.v48.primary_assembly.annotation.gtf \
+  --dict genome/GRCh38.primary_assembly.genome.dict \
+  --bed12 annotation/gencode.v48.genes.bed12 \
+  --refflat annotation/gencode.v48.refFlat.txt \
+  --rrna annotation/gencode.v48.rRNA.interval_list
 ```
 
 ---
@@ -657,6 +712,8 @@ The exact tool versions this pipeline is configured to load (from the `tools:` b
 | SAMtools | 1.21 | module | BAM processing |
 | GATK | 4.6.2.0 | module | MarkDuplicates, BQSR, variant calling |
 | Subread (featureCounts) | 2.1.1 (conda env `subread`, bioconda) | conda | Quantification |
+| RSeQC | conda env `rseqc` (bioconda) | conda | RNA-seq QC (strandedness, read distribution) |
+| Picard | via the GATK module (4.6.2.0) | module | RNA-seq QC (CollectRnaSeqMetrics) |
 | Singularity | system binary at `/usr/bin/singularity` *(version not pinned)* | PATH | Ancestry container |
 | Python | 3.11 (`python311`) | module | PDF reports (fpdf2, pandas, Pillow) |
 | R + Bioconductor | 4.4.2 | module | Ancestry plots (ggplot2, gridExtra; optional readxl) |
@@ -691,6 +748,8 @@ The exact tool versions this pipeline is configured to load (from the `tools:` b
 | SAMtools | 1.17+ | BAM processing |
 | GATK | 4.x | MarkDup, BQSR, variant calling |
 | Subread | 2.0+ | featureCounts (RNA) |
+| RSeQC | 4.0+ | RNA-seq QC — strandedness inference, read distribution (`conda env rseqc`) |
+| Picard | via GATK 4.x | RNA-seq QC — CollectRnaSeqMetrics |
 | Singularity | 3.x | Ancestry container |
 | Python 3 | 3.9+ | Reports (fpdf2, pandas, Pillow) |
 | R | 4.x | Ancestry plots (ggplot2, gridExtra; optional: readxl for Excel metadata) |
