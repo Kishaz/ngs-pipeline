@@ -106,7 +106,10 @@ rule picard_rnaseqmetrics:
     wildcard_constraints:
         sample=_RNA_ONLY,
     envmodules:
-        *get_tool_modules("picard"),
+        # Picard's CollectRnaSeqMetrics is invoked via the GATK module (bundles
+        # Picard + its Java); the standalone picard wrapper on this cluster does
+        # not dispatch subcommands reliably.
+        *get_tool_modules("gatk"),
     threads: 1
     resources:
         mem_mb=8000,
@@ -126,14 +129,14 @@ rule picard_rnaseqmetrics:
 
         RRNA=""
         if [ -n "{params.rrna}" ] && [ -f "{params.rrna}" ]; then
-            RRNA="RIBOSOMAL_INTERVALS={params.rrna}"
+            RRNA="--RIBOSOMAL_INTERVALS {params.rrna}"
         fi
 
-        picard CollectRnaSeqMetrics \
-            I={input.bam} \
-            O={output} \
-            REF_FLAT={input.refflat} \
-            STRAND_SPECIFICITY=$SPEC \
+        gatk CollectRnaSeqMetrics \
+            -I {input.bam} \
+            -O {output} \
+            --REF_FLAT {input.refflat} \
+            --STRAND_SPECIFICITY $SPEC \
             $RRNA \
             2> {log}
         """

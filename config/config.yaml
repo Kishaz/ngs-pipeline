@@ -169,9 +169,7 @@ tools:
   rseqc:
     type: "conda"
     name: "rseqc"
-  picard:
-    type: "module"
-    name: "picard/3.2.0"
+  # Picard's CollectRnaSeqMetrics runs via the gatk module below (bundles Picard).
   singularity:
     type: "module"
     name: ""                           # Empty = not a module; must be in PATH
