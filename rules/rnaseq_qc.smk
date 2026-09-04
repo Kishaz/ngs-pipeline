@@ -108,9 +108,9 @@ rule picard_rnaseqmetrics:
     envmodules:
         # Picard's CollectRnaSeqMetrics is invoked via the GATK module (bundles
         # Picard + its Java); the standalone picard wrapper on this cluster does
-        # not dispatch subcommands reliably.
-        *get_tool_modules("gatk"),
-    threads: 1
+        # not dispatch subcommands reliably. samtools pre-filters the stream.
+        *get_tool_modules("gatk", "samtools"),
+    threads: 2
     resources:
         mem_mb=8000,
         runtime=60,
@@ -132,11 +132,19 @@ rule picard_rnaseqmetrics:
             RRNA="--RIBOSOMAL_INTERVALS {params.rrna}"
         fi
 
-        gatk CollectRnaSeqMetrics \
-            -I {input.bam} \
+        # CollectRnaSeqMetrics computes pair orientation for the stranded
+        # metrics and throws on inter-chromosomal read pairs (mate on a
+        # different contig) — common in tumour/FFPE RNA-seq. Drop only those
+        # reads on the way in: keep unpaired reads, mate-unmapped reads, and
+        # pairs whose mate is on the same contig. Stream to gatk via stdin.
+        samtools view -h -b \
+            -e '!flag.paired || flag.munmap || rnext == "=" || rnext == rname' \
+            {input.bam} 2> {log} \
+        | gatk CollectRnaSeqMetrics \
+            -I /dev/stdin \
             -O {output} \
             --REF_FLAT {input.refflat} \
             --STRAND_SPECIFICITY $SPEC \
             $RRNA \
-            2> {log}
+            2>> {log}
         """
