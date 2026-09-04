@@ -9,6 +9,7 @@ rule featurecounts:
         bam="{results_dir}/alignment/bam/{sample}.sorted.markdup.bam",
         bai="{results_dir}/alignment/bam/{sample}.sorted.markdup.bam.bai",
         gtf=config["gtf"],
+        strand=get_strand_input,
     output:
         counts="{results_dir}/counts/{sample}.featureCounts.txt",
         summary="{results_dir}/counts/{sample}.featureCounts.txt.summary",
@@ -30,6 +31,11 @@ rule featurecounts:
         """
         {params.activate}
 
+        # Strandedness: numeric config value used as-is; "auto" reads the value
+        # inferred by RSeQC infer_experiment.py (rules/rnaseq_qc.smk).
+        S="{params.strandedness}"
+        if [ "$S" = "auto" ]; then S=$(cat {input.strand}); fi
+
         # featureCounts needs -p --countReadPairs for paired-end BAMs and must
         # NOT get it for single-end. The manifest can't tell us for BAM-input
         # samples (no R2), so detect from the BAM's first read flag (bit 0x1).
@@ -43,7 +49,7 @@ rule featurecounts:
             -a {input.gtf} \
             -o {output.counts} \
             {params.extra} \
-            -s {params.strandedness} \
+            -s $S \
             $PE \
             -T {threads} \
             {input.bam} \

@@ -209,6 +209,48 @@ def get_ancestry_seq_type():
 
 
 # =============================================================================
+# RNA-seq QC (RSeQC + Picard) HELPERS
+# =============================================================================
+
+def rnaseq_qc_enabled():
+    """True if RNA-specific QC (strandedness, RSeQC, Picard) is enabled."""
+    return config.get("rnaseq_qc", {}).get("enabled", True)
+
+
+def strandedness_is_auto():
+    """True if featureCounts strandedness should be inferred (config value 'auto')."""
+    return str(config["quantification"]["featurecounts"]["strandedness"]).lower() == "auto"
+
+
+def get_strand_input(wildcards):
+    """
+    Return the per-sample inferred-strand file as a rule input ONLY when
+    strandedness is 'auto'. With a numeric config value there is no dependency.
+    Referencing {input.strand} in a shell block is safe when this returns []
+    (it formats to an empty string; the auto branch is the only one that reads it).
+    """
+    if strandedness_is_auto():
+        return f"{wildcards.results_dir}/qc/rseqc/{wildcards.sample}.strand"
+    return []
+
+
+def get_rnaseq_qc_targets():
+    """
+    Expected RSeQC + Picard QC outputs for all RNA samples (empty if disabled
+    or no RNA samples). Used to pull RNA QC into the alignment stage / MultiQC.
+    """
+    if not (rnaseq_qc_enabled() and RNA_SAMPLES):
+        return []
+    rd = config["results_dir"]
+    out = []
+    for s in RNA_SAMPLES:
+        out.append(f"{rd}/qc/rseqc/{s}.infer_experiment.txt")
+        out.append(f"{rd}/qc/rseqc/{s}.read_distribution.txt")
+        out.append(f"{rd}/qc/picard/{s}.rna_metrics.txt")
+    return out
+
+
+# =============================================================================
 # FASTQC OUTPUT FUNCTIONS
 # =============================================================================
 

@@ -226,11 +226,32 @@ rule multiqc:
             rd=config["results_dir"],
             sample=FASTQ_SAMPLES,
         ),
+        # flagstat is guaranteed for every sample (incl. BAM-input). Other
+        # alignment metrics (HISAT2 summaries, MarkDuplicates) are picked up by
+        # MultiQC's directory scan when present — NOT required here, because
+        # BAM-input samples that skip mark_duplicates never produce dup_metrics.
+        aln_metrics=expand(
+            "{rd}/alignment/metrics/{sample}.flagstat.txt",
+            rd=config["results_dir"],
+            sample=SAMPLES,
+        ),
+        counts_summaries=expand(
+            "{rd}/counts/{sample}.featureCounts.txt.summary",
+            rd=config["results_dir"],
+            sample=RNA_SAMPLES,
+        ),
+        rnaseq_qc=get_rnaseq_qc_targets(),
     output:
         "{results_dir}/qc/multiqc/multiqc_report.html",
     params:
-        indir=lambda wc: f"{wc.results_dir}/qc",
         outdir=lambda wc: f"{wc.results_dir}/qc/multiqc",
+        indirs=lambda wc: " ".join(
+            f"--indir {d}" for d in (
+                f"{wc.results_dir}/qc",
+                f"{wc.results_dir}/alignment/metrics",
+                f"{wc.results_dir}/counts",
+            )
+        ),
         script=f"{SCRIPTS}/run_multiqc.sh",
     envmodules:
         *get_tool_modules("python3", "multiqc"),
@@ -242,7 +263,7 @@ rule multiqc:
     shell:
         """
         bash {params.script} \
-            --indir {params.indir} \
+            {params.indirs} \
             --outdir {params.outdir} \
             2> {log}
         """

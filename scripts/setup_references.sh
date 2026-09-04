@@ -240,6 +240,32 @@ if [[ "$ONLY" == "all" || "$ONLY" == "hisat2" ]]; then
 fi
 
 ###############################################################################
+# STEP 4b: RNA-seq QC references (BED12 / refFlat / rRNA intervals)
+# Built from the GTF with a self-contained Python converter (no UCSC tools,
+# no network). Used by RSeQC (strandedness, read distribution) and Picard
+# CollectRnaSeqMetrics. Config keys: rnaseq_qc.{bed12,refflat,rrna_intervals}.
+###############################################################################
+echo "--- Step 4b: RNA-seq QC references ---"
+BED12="${ANNOT_DIR}/gencode.v${GENCODE_VERSION}.genes.bed12"
+REFFLAT="${ANNOT_DIR}/gencode.v${GENCODE_VERSION}.refFlat.txt"
+RRNA="${ANNOT_DIR}/gencode.v${GENCODE_VERSION}.rRNA.interval_list"
+_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "$BED12" && -f "$REFFLAT" && -f "$RRNA" ]]; then
+    echo "  RNA-seq QC references already exist — skipping"
+elif [[ -f "$GTF" ]]; then
+    python3 "${_SCRIPT_DIR}/gtf_to_rnaseq_refs.py" \
+        --gtf "$GTF" \
+        --dict "$DICT" \
+        --bed12 "$BED12" \
+        --refflat "$REFFLAT" \
+        --rrna "$RRNA"
+    echo "  Done: $BED12 / $REFFLAT / $RRNA"
+else
+    echo "  GTF not found — skipping RNA-seq QC references"
+fi
+echo ""
+
+###############################################################################
 # STEP 5: Verify everything
 ###############################################################################
 echo "================================================================"
@@ -288,6 +314,9 @@ echo ""
 
 echo "  Annotation:"
 check_file "GENCODE GTF"            "$GTF"
+check_file "RNA QC BED12"          "${ANNOT_DIR}/gencode.v${GENCODE_VERSION}.genes.bed12"
+check_file "RNA QC refFlat"        "${ANNOT_DIR}/gencode.v${GENCODE_VERSION}.refFlat.txt"
+check_file "RNA QC rRNA intervals" "${ANNOT_DIR}/gencode.v${GENCODE_VERSION}.rRNA.interval_list"
 echo ""
 
 echo "  Known sites (BQSR):"

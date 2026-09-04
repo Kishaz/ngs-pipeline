@@ -126,6 +126,7 @@ include: "rules/post_align.smk"
 include: "rules/bqsr.smk"
 include: "rules/variant_calling.smk"
 include: "rules/quantification.smk"
+include: "rules/rnaseq_qc.smk"
 include: "rules/bam_input.smk"
 include: "rules/ancestry.smk"
 include: "rules/reports.smk"
@@ -152,12 +153,16 @@ rule stage_qc:
 
 
 # --- Stage 2: Alignment + post-alignment + alignment report ---
+# MultiQC + RNA-specific QC (RSeQC/Picard) live here so they run for every
+# cohort — including BAM-input RNA, where stage_qc (FASTQ read QC) is a no-op.
 rule stage_align:
     input:
         rules.stage_qc.input,
         expand(f"{rd}/alignment/bam/{{s}}.sorted.markdup.bam.bai", s=SAMPLES),
         expand(f"{rd}/alignment/metrics/{{s}}.flagstat.txt", s=SAMPLES),
         f"{rd}/alignment/reports/alignment_qc_report.pdf",
+        [f"{rd}/qc/multiqc/multiqc_report.html"] if SAMPLES else [],
+        get_rnaseq_qc_targets(),
 
 
 # --- Stage 3: BQSR (DNA only; no-op for RNA-only cohorts) ---
@@ -214,6 +219,40 @@ onstart:
     print(f"  Output:      {rd}")
     print("=" * 60)
 
+    # --- Reproducibility: record pipeline git commit + resolved references ---
+    try:
+        import datetime as _dt
+        def _git(*a):
+            try:
+                return subprocess.check_output(
+                    ["git", "-C", workflow.basedir, *a],
+                    stderr=subprocess.DEVNULL,
+                ).decode().strip()
+            except Exception:
+                return "unknown"
+        os.makedirs(rd, exist_ok=True)
+        _rq = config.get("rnaseq_qc", {})
+        with open(os.path.join(rd, "provenance.txt"), "w") as _p:
+            _p.write("NGS Pipeline — run provenance\n")
+            _p.write(f"timestamp:        {_dt.datetime.now().isoformat(timespec='seconds')}\n")
+            _p.write(f"pipeline_commit:  {_git('rev-parse', 'HEAD')}\n")
+            _p.write(f"pipeline_branch:  {_git('rev-parse', '--abbrev-ref', 'HEAD')}\n")
+            _p.write(f"pipeline_dirty:   {'yes' if _git('status', '--porcelain') else 'no'}\n")
+            _p.write(f"pipeline_dir:     {workflow.basedir}\n")
+            _p.write(f"samples:          {len(SAMPLES)} (DNA {len(DNA_SAMPLES)}, RNA {len(RNA_SAMPLES)})\n")
+            _p.write(f"results_dir:      {rd}\n")
+            _p.write(f"ref_fasta:        {config['ref']['fasta']}\n")
+            _p.write(f"hisat2_index:     {config.get('hisat2_index', '')}\n")
+            _p.write(f"gtf:              {config['gtf']}\n")
+            _p.write(f"strandedness:     {config['quantification']['featurecounts']['strandedness']}\n")
+            _p.write(f"rnaseq_qc:        {'enabled' if _rq.get('enabled', True) else 'disabled'}\n")
+            _p.write(f"rnaseq_qc.bed12:  {_rq.get('bed12', '')}\n")
+            _p.write(f"rnaseq_qc.refflat:{_rq.get('refflat', '')}\n")
+        print(f"  Provenance:  {rd}/provenance.txt")
+    except Exception as _e:
+        print(f"  WARNING: could not write provenance.txt: {_e}")
+    print("=" * 60)
+
 
 onsuccess:
     print("\n" + "=" * 60)
@@ -243,8 +282,10 @@ onsuccess:
             if _pub_cfg == "__DEFAULT__" else (_pub_cfg or "").strip())
     if _pub:
         _items = [
+            "provenance.txt",
             "counts/gene_counts_matrix.tsv",
-            "qc/reports", "qc/multiqc/multiqc_report.html", "alignment/reports",
+            "qc/reports", "qc/multiqc/multiqc_report.html",
+            "qc/rseqc", "qc/picard", "alignment/reports",
             "ancestry/ancestry_summary_superpops.tsv", "ancestry/reports",
             "variants/joint",  # DNA joint VCF (may be large)
         ]

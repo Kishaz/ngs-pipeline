@@ -93,7 +93,23 @@ variant_calling:
 quantification:
   featurecounts:
     extra: "-t exon -g gene_id --primary"
-    strandedness: 0
+    # 0 = unstranded, 1 = forward, 2 = reverse, or "auto" to infer per sample
+    # from RSeQC infer_experiment.py (requires rnaseq_qc.enabled + bed12 below).
+    strandedness: "auto"
+
+# --- RNA-seq–specific QC (RNA only): strandedness + RSeQC + Picard ---
+# References below are built ONCE from the GENCODE GTF (no UCSC tools / network):
+#   python scripts/gtf_to_rnaseq_refs.py --gtf <gtf> --dict <genome.dict> \
+#     --bed12 <bed12> --refflat <refflat> --rrna <rRNA.interval_list>
+# (setup_references.sh does this automatically.) Set enabled: false to skip all
+# RNA QC — in that case strandedness above must be a number, not "auto".
+rnaseq_qc:
+  enabled: true
+  infer_sample_size: 400000        # reads sampled by infer_experiment.py
+  strand_threshold: 0.80           # fraction to call a library stranded
+  bed12: "/projects/yateslab_genomics/sam/ngs_pipeline/resources/GRCh38_v48/annotation/gencode.v48.genes.bed12"
+  refflat: "/projects/yateslab_genomics/sam/ngs_pipeline/resources/GRCh38_v48/annotation/gencode.v48.refFlat.txt"
+  rrna_intervals: "/projects/yateslab_genomics/sam/ngs_pipeline/resources/GRCh38_v48/annotation/gencode.v48.rRNA.interval_list"
 
 # --- Ancestry estimation ---
 ancestry:
@@ -150,6 +166,12 @@ tools:
   subread:
     type: "conda"
     name: "subread"
+  rseqc:
+    type: "conda"
+    name: "rseqc"
+  picard:
+    type: "module"
+    name: "picard/3.2.0"
   singularity:
     type: "module"
     name: ""                           # Empty = not a module; must be in PATH
