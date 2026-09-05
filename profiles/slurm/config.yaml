@@ -45,49 +45,44 @@ set-threads:
   # Ancestry
   run_ancestry: 4
 
-# --- Per-rule resource overrides ---
+# --- Per-rule memory overrides ---
+# NOTE: do NOT set `runtime` here. snakemake-executor-plugin-slurm (2.5.4) mis-
+# converts a runtime given via set-resources (it lands as SECONDS -> SLURM
+# --time is 60x too small, so every job TIMEOUTs in ~2 min). Rule-level
+# `resources: runtime=` in rules/*.smk IS honored correctly (minutes), so we let
+# those drive the wall-time and only override memory here. Every shell rule
+# already declares a rule-level runtime; the rules without one are local `run:`
+# rules (ingest_*, stage_bams_for_ancestry) that never hit SLURM.
 set-resources:
   # QC
   fastp_pe:
     mem_mb: 8000
-    runtime: 120
   fastp_se:
     mem_mb: 8000
-    runtime: 120
   # Alignment
   bwa_mem2_align:
     mem_mb: 48000
-    runtime: 480
   hisat2_align:
     mem_mb: 32000
-    runtime: 480
   samtools_sort:
     mem_mb: 32000
-    runtime: 180
   mark_duplicates:
     mem_mb: 32000
-    runtime: 240
   # BQSR
   base_recalibrator:
     mem_mb: 16000
-    runtime: 360
   apply_bqsr:
     mem_mb: 16000
-    runtime: 360
   # Variant calling
   haplotype_caller:
     mem_mb: 16000
-    runtime: 720
   genomics_db_import:
     mem_mb: 48000
-    runtime: 480
   genotype_gvcfs:
     mem_mb: 32000
-    runtime: 480
   # Ancestry
   run_ancestry:
     mem_mb: 80000
-    runtime: 1440
 
 # --- Snakemake execution settings ---
 use-envmodules: true
