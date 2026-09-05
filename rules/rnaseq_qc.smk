@@ -112,8 +112,12 @@ rule picard_rnaseqmetrics:
         *get_tool_modules("gatk", "samtools"),
     threads: 2
     resources:
-        mem_mb=8000,
-        runtime=60,
+        # CollectRnaSeqMetrics holds per-transcript coverage; on a large
+        # BAM it needs real heap. Pin -Xmx (GATK otherwise sizes to the
+        # NODE's RAM, not the SLURM cgroup, and OOMs) and leave headroom
+        # under mem_mb for JVM non-heap + the samtools pre-filter.
+        mem_mb=16000,
+        runtime=120,
     log:
         "{results_dir}/logs/picard/{sample}.rna_metrics.log",
     shell:
@@ -140,7 +144,7 @@ rule picard_rnaseqmetrics:
         samtools view -h -b \
             -e '!flag.paired || flag.munmap || rnext == "=" || rnext == rname' \
             {input.bam} 2> {log} \
-        | gatk CollectRnaSeqMetrics \
+        | gatk --java-options "-Xmx12g" CollectRnaSeqMetrics \
             -I /dev/stdin \
             -O {output} \
             --REF_FLAT {input.refflat} \
