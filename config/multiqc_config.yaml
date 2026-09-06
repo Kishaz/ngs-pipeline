@@ -1,0 +1,24 @@
+# MultiQC configuration for the NGS pipeline.
+#
+# Name every sample from its filename. Picard CollectRnaSeqMetrics is fed via
+# `-I /dev/stdin` (rules/rnaseq_qc.smk pre-filters inter-chromosomal read pairs
+# through samtools), so each rna_metrics.txt records INPUT=/dev/stdin — without
+# this, MultiQC derives the sample name from that shared INPUT and collapses all
+# per-sample RnaSeqMetrics reports into a single one. Our outputs are all named
+# {sample}.* , so filename-based naming yields correct, consistent per-sample
+# names across every module.
+use_filename_as_sample_name: true
+
+# Trim the pipeline's file suffixes so sample names stay clean (e.g.
+# "SL476019.rna_metrics" -> "SL476019").
+extra_fn_clean_exts:
+  - ".rna_metrics"
+  - ".read_distribution"
+  - ".infer_experiment"
+  - ".dup_metrics"
+  - ".flagstat"
+  - ".hisat2_summary"
+  - ".featureCounts"
+  - "_fastp"
+
+title: "NGS Pipeline QC"

@@ -253,11 +253,13 @@ rule multiqc:
             )
         ),
         script=f"{SCRIPTS}/run_multiqc.sh",
+        mqc_config=os.path.join(workflow.basedir, "config", "multiqc_config.yaml"),
     envmodules:
         *get_tool_modules("python3", "multiqc"),
     resources:
-        mem_mb=4000,
-        runtime=30,
+        # Large cohorts (100+ samples, thousands of files) blow past 4 GB.
+        mem_mb=16000,
+        runtime=60,
     log:
         "{results_dir}/logs/multiqc.log",
     shell:
@@ -265,5 +267,6 @@ rule multiqc:
         bash {params.script} \
             {params.indirs} \
             --outdir {params.outdir} \
+            --config {params.mqc_config} \
             2> {log}
         """
