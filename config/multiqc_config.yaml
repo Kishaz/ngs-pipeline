@@ -21,4 +21,6 @@ extra_fn_clean_exts:
   - ".featureCounts"
   - "_fastp"
 
-title: "NGS Pipeline QC"
+# NOTE: do NOT set `title:` here — MultiQC slugifies it into the output
+# filename (e.g. NGS-Pipeline-QC_multiqc_report.html), which breaks the rule's
+# expected `multiqc_report.html` output. Titling is left to the default.
